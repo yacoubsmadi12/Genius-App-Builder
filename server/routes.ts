@@ -42,9 +42,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/firebase", async (req, res) => {
     try {
       const { firebaseUid, email, name, photoURL } = req.body;
+      console.log("DEBUG: Firebase auth request for UID:", firebaseUid, "Email:", email);
       
       // Check if user exists by Firebase UID
       let user = await storage.getUserByFirebaseUid(firebaseUid);
+      console.log("DEBUG: Existing user found:", user ? `${user.email} (${user.id})` : "null");
       
       if (!user) {
         // Create new user
@@ -55,10 +57,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           provider: "google",
           firebaseUid
         });
+        console.log("DEBUG: Created new user:", user.email, "with ID:", user.id);
       }
 
       res.json({ user });
     } catch (error) {
+      console.log("DEBUG: Firebase auth error:", error);
       res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });

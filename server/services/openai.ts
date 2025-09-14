@@ -65,7 +65,7 @@ Generate the complete Flutter project with all necessary files, proper navigatio
     const result = JSON.parse(response.choices[0].message.content || "{}");
     return result as GeneratedApp;
   } catch (error) {
-    throw new Error(`Failed to generate Flutter app: ${error.message}`);
+    throw new Error(`Failed to generate Flutter app: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -81,9 +81,9 @@ export async function generateAppIcon(appName: string, description: string): Pro
       quality: "standard",
     });
 
-    return response.data[0].url!;
+    return response.data?.[0]?.url || '';
   } catch (error) {
-    throw new Error(`Failed to generate app icon: ${error.message}`);
+    throw new Error(`Failed to generate app icon: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

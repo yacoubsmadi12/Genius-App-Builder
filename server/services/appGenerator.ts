@@ -107,7 +107,7 @@ export async function startAppGeneration(generationId: string) {
       progress: {
         step: "Failed",
         completed: [],
-        current: `Error: ${error.message}`,
+        current: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         total: GENERATION_STEPS.length
       }
     });

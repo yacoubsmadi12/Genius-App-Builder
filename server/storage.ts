@@ -47,9 +47,12 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
-      ...insertUser, 
+      ...insertUser,
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      photoURL: insertUser.photoURL ?? null,
+      provider: insertUser.provider ?? "email",
+      firebaseUid: insertUser.firebaseUid ?? null
     };
     this.users.set(id, user);
 
@@ -91,6 +94,7 @@ export class MemStorage implements IStorage {
       progress: {},
       resultUrl: null,
       apkUrl: null,
+      iconUrl: insertGeneration.iconUrl ?? null,
       createdAt: new Date()
     };
     this.appGenerations.set(id, generation);
@@ -115,6 +119,9 @@ export class MemStorage implements IStorage {
     const subscription: Subscription = {
       ...insertSubscription,
       id,
+      status: insertSubscription.status ?? "active",
+      generationsUsed: insertSubscription.generationsUsed ?? "0",
+      generationsLimit: insertSubscription.generationsLimit ?? "2",
       createdAt: new Date()
     };
     this.subscriptions.set(id, subscription);

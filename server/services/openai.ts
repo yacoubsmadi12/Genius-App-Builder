@@ -1,9 +1,6 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
-// the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_KEY || "default_key"
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "default_key");
 
 export interface AppGenerationRequest {
   appName: string;
@@ -21,7 +18,9 @@ export interface GeneratedApp {
 }
 
 export async function generateFlutterApp(request: AppGenerationRequest): Promise<GeneratedApp> {
-  const systemPrompt = `You are an expert Flutter developer. Generate a complete Flutter app based on the user's requirements.
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+  const prompt = `You are an expert Flutter developer. Generate a complete Flutter app based on the user's requirements.
 
 Create a production-ready Flutter app with:
 1. Proper project structure
@@ -33,62 +32,48 @@ Create a production-ready Flutter app with:
 7. Authentication if needed
 8. Responsive design
 
-Return a JSON response with:
+App Specifications:
+- App Name: ${request.appName}
+- Backend: ${request.backend}
+- ${request.iconUrl ? `Icon URL: ${request.iconUrl}` : 'Generate appropriate icons'}
+- Description: ${request.prompt}
+
+Return ONLY a valid JSON response with:
 - files: object with file paths as keys and file contents as values
 - structure: array of file paths showing the project structure
 - readme: markdown documentation for the app
 
 Focus on creating a realistic, functional app that matches the description exactly.`;
 
-  const userPrompt = `Create a Flutter app with these specifications:
-
-App Name: ${request.appName}
-Backend: ${request.backend}
-${request.iconUrl ? `Icon URL: ${request.iconUrl}` : 'Generate appropriate icons'}
-
-Description: ${request.prompt}
-
-Generate the complete Flutter project with all necessary files, proper navigation, and ${request.backend} integration.`;
-
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 4000,
-      temperature: 0.7,
-    });
-
-    const result = JSON.parse(response.choices[0].message.content || "{}");
-    return result as GeneratedApp;
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    // Extract JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in response");
+    }
+    
+    const parsedResult = JSON.parse(jsonMatch[0]);
+    return parsedResult as GeneratedApp;
   } catch (error) {
     throw new Error(`Failed to generate Flutter app: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 export async function generateAppIcon(appName: string, description: string): Promise<string> {
-  const prompt = `Create a modern, professional app icon for "${appName}". ${description}. The icon should be simple, recognizable, and work well at small sizes. Use a clean, minimalist design with bold colors.`;
-
-  try {
-    const response = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: prompt,
-      n: 1,
-      size: "1024x1024",
-      quality: "standard",
-    });
-
-    return response.data?.[0]?.url || '';
-  } catch (error) {
-    throw new Error(`Failed to generate app icon: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  // Note: Gemini doesn't have image generation capabilities, so we'll return a placeholder or use an alternative service
+  // For now, we'll return an empty string to indicate no icon was generated
+  console.log(`Icon generation requested for ${appName}: ${description}`);
+  return '';
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {
-  const systemPrompt = `You are an expert app designer. Enhance the user's app description to include specific technical details, UI/UX requirements, and feature specifications that will help generate a better Flutter app.
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+  const enhancePrompt = `You are an expert app designer. Enhance the user's app description to include specific technical details, UI/UX requirements, and feature specifications that will help generate a better Flutter app.
 
 Add details about:
 - Specific screens and navigation flow
@@ -97,20 +82,16 @@ Add details about:
 - Data models and functionality
 - User interactions and workflows
 
-Return only the enhanced description.`;
+Original prompt: ${prompt}
+
+Return only the enhanced description without any additional text or explanations.`;
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-5",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt }
-      ],
-      max_tokens: 1000,
-      temperature: 0.7,
-    });
-
-    return response.choices[0].message.content || prompt;
+    const result = await model.generateContent(enhancePrompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return text.trim() || prompt;
   } catch (error) {
     console.error("Failed to enhance prompt:", error);
     return prompt;

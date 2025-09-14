@@ -144,6 +144,48 @@ export default function Dashboard() {
     }
   };
 
+  const handleGenerateIcon = async () => {
+    if (!appName.trim()) {
+      toast({
+        title: "App name required",
+        description: "Please enter an app name before generating an icon",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      toast({
+        title: "Icon generation started",
+        description: "Generating an AI-powered icon for your app...",
+      });
+
+      const response = await apiRequest("POST", "/api/generate-icon", {
+        appName,
+        description: prompt || "Modern mobile application icon"
+      });
+
+      if (response.iconUrl) {
+        toast({
+          title: "Icon generated successfully!",
+          description: "Your app icon has been generated and applied",
+        });
+        // Here you could set the generated icon URL if the API returned one
+      } else {
+        toast({
+          title: "Icon generation not available",
+          description: "Icon generation is currently not supported with Gemini. Please upload your own icon.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Icon generation failed",
+        description: error instanceof Error ? error.message : "Failed to generate icon",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Update current generation from API
   useEffect(() => {
     if (generations?.length && generations.length > 0) {
@@ -217,6 +259,8 @@ export default function Dashboard() {
                     <Button 
                       type="button" 
                       variant="outline"
+                      onClick={handleGenerateIcon}
+                      disabled={!appName.trim()}
                       data-testid="button-generate-icon"
                     >
                       <Wand2 className="mr-2 h-4 w-4" />

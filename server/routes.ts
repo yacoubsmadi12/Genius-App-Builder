@@ -141,6 +141,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Icon generation route
+  app.post("/api/generate-icon", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { appName, description } = req.body;
+      
+      if (!appName) {
+        return res.status(400).json({ error: "App name is required" });
+      }
+
+      // Import the icon generation function
+      const { generateAppIcon } = await import("./services/openai");
+      
+      const iconUrl = await generateAppIcon(appName, description || "Modern mobile application icon");
+      
+      // Since Gemini doesn't support image generation yet, we'll return a placeholder response
+      res.json({ 
+        iconUrl: iconUrl || null,
+        message: iconUrl ? "Icon generated successfully" : "Icon generation is not available with current AI model"
+      });
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // File download routes
   app.get("/api/download/:id", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {

@@ -13,18 +13,7 @@ import { getAuthToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Wand2, Upload } from "lucide-react";
 import { useLocation } from "wouter";
-
-interface AppGeneration {
-  id: string;
-  appName: string;
-  prompt: string;
-  backend: string;
-  iconUrl?: string;
-  status: string;
-  progress: any;
-  resultUrl?: string;
-  apkUrl?: string;
-}
+import { type AppGeneration, type Subscription } from "@shared/schema";
 
 const GENERATION_STEPS = [
   { id: 'project', label: 'Creating Flutter project' },
@@ -55,16 +44,18 @@ export default function Dashboard() {
   }, [user, setLocation]);
 
   // Fetch user generations
-  const { data: generations } = useQuery({
+  const { data: generations } = useQuery<{ generations: AppGeneration[] }, Error, AppGeneration[]>({
     queryKey: ["/api/generations"],
     enabled: !!user,
     refetchInterval: currentGeneration?.status === "generating" ? 2000 : false,
+    select: (d) => d.generations,
   });
 
   // Fetch user subscription
-  const { data: subscription } = useQuery({
+  const { data: subscription } = useQuery<{ subscription: Subscription | null }, Error, Subscription | null>({
     queryKey: ["/api/user/subscription"],
     enabled: !!user,
+    select: (d) => d.subscription,
   });
 
   // Create generation mutation
@@ -116,11 +107,11 @@ export default function Dashboard() {
     }
 
     // Check subscription limits
-    if (subscription?.subscription) {
-      const used = parseInt(subscription.subscription.generationsUsed);
-      const limit = parseInt(subscription.subscription.generationsLimit);
+    if (subscription) {
+      const used = parseInt(subscription.generationsUsed);
+      const limit = parseInt(subscription.generationsLimit);
       
-      if (used >= limit && subscription.subscription.plan === "free") {
+      if (used >= limit && subscription.plan === "free") {
         toast({
           title: "Generation limit reached",
           description: "Please upgrade your plan to generate more apps",
@@ -155,8 +146,8 @@ export default function Dashboard() {
 
   // Update current generation from API
   useEffect(() => {
-    if (generations?.generations?.length > 0) {
-      const latest = generations.generations[0];
+    if (generations?.length && generations.length > 0) {
+      const latest = generations[0];
       if (latest.status === "generating" || latest.status === "completed") {
         setCurrentGeneration(latest);
       }
@@ -167,8 +158,9 @@ export default function Dashboard() {
     if (!currentGeneration?.progress) return GENERATION_STEPS.map(step => ({ ...step, status: 'pending' as const }));
     
     return GENERATION_STEPS.map(step => {
-      const completed = currentGeneration.progress.completed || [];
-      const current = currentGeneration.progress.current || '';
+      const progress = currentGeneration.progress as any;
+      const completed = progress?.completed || [];
+      const current = progress?.current || '';
       
       if (completed.includes(step.label)) {
         return { ...step, status: 'completed' as const };

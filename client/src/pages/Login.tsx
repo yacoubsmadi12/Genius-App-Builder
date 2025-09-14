@@ -30,7 +30,7 @@ export default function Login() {
     } catch (error) {
       toast({
         title: "Sign in failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {
@@ -45,7 +45,7 @@ export default function Login() {
     } catch (error) {
       toast({
         title: "Google sign in failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     }

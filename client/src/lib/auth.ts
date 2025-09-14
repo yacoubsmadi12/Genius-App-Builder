@@ -18,7 +18,7 @@ export async function signInWithGoogle() {
   try {
     await signInWithRedirect(auth, provider);
   } catch (error) {
-    throw new Error(`Google sign-in failed: ${error.message}`);
+    throw new Error(`Google sign-in failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -32,7 +32,7 @@ export async function handleRedirectResult() {
     }
     return null;
   } catch (error) {
-    throw new Error(`Redirect result handling failed: ${error.message}`);
+    throw new Error(`Redirect result handling failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -42,7 +42,7 @@ export async function signInWithEmail(email: string, password: string) {
     await registerUserInBackend(result.user);
     return result.user;
   } catch (error) {
-    throw new Error(`Email sign-in failed: ${error.message}`);
+    throw new Error(`Email sign-in failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -60,7 +60,7 @@ export async function signUpWithEmail(email: string, password: string, name: str
 
     return result.user;
   } catch (error) {
-    throw new Error(`Email sign-up failed: ${error.message}`);
+    throw new Error(`Email sign-up failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -68,7 +68,7 @@ export async function resetPassword(email: string) {
   try {
     await sendPasswordResetEmail(auth, email);
   } catch (error) {
-    throw new Error(`Password reset failed: ${error.message}`);
+    throw new Error(`Password reset failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -76,7 +76,7 @@ export async function logout() {
   try {
     await signOut(auth);
   } catch (error) {
-    throw new Error(`Logout failed: ${error.message}`);
+    throw new Error(`Logout failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 

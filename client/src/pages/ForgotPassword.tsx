@@ -29,7 +29,7 @@ export default function ForgotPassword() {
     } catch (error) {
       toast({
         title: "Reset failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

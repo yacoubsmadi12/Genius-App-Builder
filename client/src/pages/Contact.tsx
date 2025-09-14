@@ -44,7 +44,7 @@ export default function Contact() {
     } catch (error) {
       toast({
         title: "Failed to send message",
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Unknown error',
         variant: "destructive",
       });
     } finally {

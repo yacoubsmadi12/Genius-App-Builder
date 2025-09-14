@@ -73,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subscription = await storage.getUserSubscription(req.user!.id);
       res.json({ subscription });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -83,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const generations = await storage.getUserAppGenerations(req.user!.id);
       res.json({ generations });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -123,7 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ generation });
     } catch (error) {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -137,7 +137,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ generation });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -161,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.download(filePath, `${generation.appName}.zip`);
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -175,7 +175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true, message: "Message sent successfully" });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

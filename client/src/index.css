@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(210, 20%, 98%);
+  --foreground: hsl(222, 15%, 15%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222, 15%, 15%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222, 15%, 15%);
+  --primary: hsl(79, 30%, 37%);
+  --primary-foreground: hsl(0, 0%, 100%);
+  --secondary: hsl(79, 20%, 65%);
+  --secondary-foreground: hsl(222, 15%, 15%);
+  --muted: hsl(210, 20%, 96%);
+  --muted-foreground: hsl(222, 15%, 45%);
+  --accent: hsl(210, 100%, 40%);
+  --accent-foreground: hsl(0, 0%, 100%);
+  --destructive: hsl(0, 85%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(214, 32%, 91%);
+  --input: hsl(214, 32%, 91%);
+  --ring: hsl(79, 30%, 37%);
+  --radius: 8px;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+}
+
+.dark {
+  --background: hsl(222, 15%, 7%);
+  --foreground: hsl(210, 20%, 98%);
+  --card: hsl(222, 15%, 9%);
+  --card-foreground: hsl(210, 20%, 98%);
+  --popover: hsl(222, 15%, 9%);
+  --popover-foreground: hsl(210, 20%, 98%);
+  --primary: hsl(79, 30%, 45%);
+  --primary-foreground: hsl(222, 15%, 7%);
+  --secondary: hsl(222, 15%, 15%);
+  --secondary-foreground: hsl(210, 20%, 98%);
+  --muted: hsl(222, 15%, 15%);
+  --muted-foreground: hsl(222, 15%, 65%);
+  --accent: hsl(210, 100%, 50%);
+  --accent-foreground: hsl(222, 15%, 7%);
+  --destructive: hsl(0, 85%, 60%);
+  --destructive-foreground: hsl(0, 0%, 100%);
+  --border: hsl(222, 15%, 20%);
+  --input: hsl(222, 15%, 20%);
+  --ring: hsl(79, 30%, 45%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(10px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.progress-step.active {
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.progress-step.completed {
+  background: hsl(120, 60%, 50%);
+  color: white;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: hsl(79, 30%, 32%);
+  transform: translateY(-1px);
+}
+
+.loading-spinner {
+  border: 2px solid var(--border);
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, hsl(79, 30%, 97%) 0%, hsl(210, 20%, 98%) 100%);
+}
+
+.hero-pattern {
+  background-image: radial-gradient(circle at 2px 2px, hsl(79, 30%, 37%) 1px, transparent 0);
+  background-size: 40px 40px;
+  opacity: 0.05;
+}

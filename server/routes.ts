@@ -1,0 +1,187 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { insertUserSchema, insertAppGenerationSchema } from "@shared/schema";
+import { authenticateUser, type AuthenticatedRequest, optionalAuth } from "./middleware/auth";
+import { startAppGeneration } from "./services/appGenerator";
+import multer from "multer";
+import * as path from "path";
+import * as fs from "fs";
+
+// Configure multer for file uploads
+const upload = multer({ 
+  dest: 'uploads/',
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Auth routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(userData.email);
+      if (existingUser) {
+        return res.status(400).json({ error: "User already exists" });
+      }
+
+      const user = await storage.createUser(userData);
+      res.json({ user });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/auth/firebase", async (req, res) => {
+    try {
+      const { firebaseUid, email, name, photoURL } = req.body;
+      
+      // Check if user exists by Firebase UID
+      let user = await storage.getUserByFirebaseUid(firebaseUid);
+      
+      if (!user) {
+        // Create new user
+        user = await storage.createUser({
+          email,
+          name,
+          photoURL,
+          provider: "google",
+          firebaseUid
+        });
+      }
+
+      res.json({ user });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // User routes
+  app.get("/api/user/profile", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    res.json({ user: req.user });
+  });
+
+  app.get("/api/user/subscription", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const subscription = await storage.getUserSubscription(req.user!.id);
+      res.json({ subscription });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // App generation routes
+  app.get("/api/generations", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const generations = await storage.getUserAppGenerations(req.user!.id);
+      res.json({ generations });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/generations", authenticateUser, upload.single('icon'), async (req: AuthenticatedRequest, res) => {
+    try {
+      const { appName, prompt, backend } = req.body;
+      
+      // Check subscription limits
+      const subscription = await storage.getUserSubscription(req.user!.id);
+      if (subscription) {
+        const used = parseInt(subscription.generationsUsed);
+        const limit = parseInt(subscription.generationsLimit);
+        
+        if (used >= limit && subscription.plan === "free") {
+          return res.status(403).json({ error: "Generation limit reached. Please upgrade your plan." });
+        }
+      }
+
+      let iconUrl = null;
+      if (req.file) {
+        // In production, upload to cloud storage
+        iconUrl = `/uploads/${req.file.filename}`;
+      }
+
+      const generationData = {
+        userId: req.user!.id,
+        appName,
+        prompt,
+        backend,
+        iconUrl
+      };
+
+      const generation = await storage.createAppGeneration(generationData);
+      
+      // Start generation process asynchronously
+      startAppGeneration(generation.id).catch(console.error);
+      
+      res.json({ generation });
+    } catch (error) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/generations/:id", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const generation = await storage.getAppGeneration(req.params.id);
+      
+      if (!generation || generation.userId !== req.user!.id) {
+        return res.status(404).json({ error: "Generation not found" });
+      }
+
+      res.json({ generation });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // File download routes
+  app.get("/api/download/:id", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const generation = await storage.getAppGeneration(req.params.id);
+      
+      if (!generation || generation.userId !== req.user!.id) {
+        return res.status(404).json({ error: "Generation not found" });
+      }
+
+      if (generation.status !== "completed" || !generation.resultUrl) {
+        return res.status(400).json({ error: "Generation not completed" });
+      }
+
+      const filePath = `./downloads/${req.params.id}.zip`;
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      res.download(filePath, `${generation.appName}.zip`);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Contact form
+  app.post("/api/contact", async (req, res) => {
+    try {
+      const { name, email, subject, message } = req.body;
+      
+      // In production, send email or save to database
+      console.log("Contact form submission:", { name, email, subject, message });
+      
+      res.json({ success: true, message: "Message sent successfully" });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Serve uploaded files
+  app.use('/uploads', express.static('uploads'));
+
+  const httpServer = createServer(app);
+  return httpServer;
+}

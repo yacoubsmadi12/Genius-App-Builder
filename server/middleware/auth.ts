@@ -13,12 +13,10 @@ export async function authenticateUser(req: AuthenticatedRequest, res: Response,
     }
 
     // In a real app, verify the Firebase token here
-    const token = authHeader.substring(7);
+    const firebaseUid = authHeader.substring(7);
     
-    // For now, we'll extract user ID from token (in production, verify with Firebase Admin SDK)
-    const userId = token; // This should be properly decoded in production
-    
-    const user = await storage.getUser(userId);
+    // Search for user by Firebase UID since that's what we get from the frontend
+    const user = await storage.getUserByFirebaseUid(firebaseUid);
     if (!user) {
       return res.status(401).json({ error: "User not found" });
     }

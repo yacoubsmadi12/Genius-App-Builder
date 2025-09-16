@@ -18,7 +18,7 @@ export interface GeneratedApp {
 }
 
 export async function generateFlutterApp(request: AppGenerationRequest): Promise<GeneratedApp> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const prompt = `You are an expert Flutter developer. Generate a complete Flutter app based on the user's requirements.
 
@@ -264,7 +264,7 @@ export async function generateAppIcon(appName: string, description: string): Pro
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
   const enhancePrompt = `You are an expert app designer. Enhance the user's app description to include specific technical details, UI/UX requirements, and feature specifications that will help generate a better Flutter app.
 

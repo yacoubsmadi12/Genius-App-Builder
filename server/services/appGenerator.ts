@@ -51,7 +51,8 @@ export async function startAppGeneration(generationId: string) {
     await updateProgress(generationId, 2);
     let iconUrl = generation.iconUrl;
     if (!iconUrl) {
-      iconUrl = await generateAppIcon(generation.appName, generation.prompt);
+      const iconResult = await generateAppIcon(generation.appName, generation.prompt);
+      iconUrl = iconResult.iconUrl;
       await storage.updateAppGeneration(generationId, { iconUrl });
     }
     await sleep(2000);
@@ -62,7 +63,7 @@ export async function startAppGeneration(generationId: string) {
       appName: generation.appName,
       prompt: enhancedPrompt,
       backend: generation.backend,
-      iconUrl
+      iconUrl: iconUrl || undefined
     });
     await sleep(2000);
 

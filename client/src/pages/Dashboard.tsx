@@ -1,17 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ProgressSidebar } from "@/components/ui/ProgressSidebar";
+import { AppWizard } from "@/components/AppWizard";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { getAuthToken } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { Wand2, Upload } from "lucide-react";
 import { useLocation } from "wouter";
 import { type AppGeneration, type Subscription } from "@shared/schema";
 
@@ -30,10 +25,6 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [appName, setAppName] = useState("");
-  const [prompt, setPrompt] = useState("");
-  const [backend, setBackend] = useState("firebase");
-  const [iconFile, setIconFile] = useState<File | null>(null);
   const [currentGeneration, setCurrentGeneration] = useState<AppGeneration | null>(null);
 
   // Redirect if not authenticated
@@ -94,9 +85,13 @@ export default function Dashboard() {
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleGenerate = async (data: {
+    appName: string;
+    prompt: string;
+    backend: string;
+    iconFile: File | null;
+    generatedIconUrl?: string | null;
+  }) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -122,11 +117,15 @@ export default function Dashboard() {
     }
 
     const formData = new FormData();
-    formData.append("appName", appName);
-    formData.append("prompt", prompt);
-    formData.append("backend", backend);
-    if (iconFile) {
-      formData.append("icon", iconFile);
+    formData.append("appName", data.appName);
+    formData.append("prompt", data.prompt);
+    formData.append("backend", data.backend);
+    if (data.iconFile) {
+      formData.append("icon", data.iconFile);
+    }
+    // Pass AI-generated icon URL if available
+    if (data.generatedIconUrl) {
+      formData.append("iconUrl", data.generatedIconUrl);
     }
 
     createGenerationMutation.mutate(formData);
@@ -230,47 +229,6 @@ export default function Dashboard() {
     }
   };
 
-  const handleGenerateIcon = async () => {
-    if (!appName.trim()) {
-      toast({
-        title: "App name required",
-        description: "Please enter an app name before generating an icon",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      toast({
-        title: "Icon generation started",
-        description: "Generating an AI-powered icon for your app...",
-      });
-
-      const response = await apiRequest("POST", "/api/generate-icon", {
-        appName,
-        description: prompt || "Modern mobile application icon"
-      });
-
-      if (response.iconUrl) {
-        toast({
-          title: "Icon generated successfully!",
-          description: "Your app icon has been generated and applied",
-        });
-        // Here you could set the generated icon URL if the API returned one
-      } else {
-        toast({
-          title: "AI icon generated!",
-          description: "Your app icon has been created using Gemini AI with intelligent design matching your app's purpose.",
-        });
-      }
-    } catch (error) {
-      toast({
-        title: "Icon generation failed",
-        description: error instanceof Error ? error.message : "Failed to generate icon",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Update current generation from API
   useEffect(() => {
@@ -312,110 +270,14 @@ export default function Dashboard() {
       </div>
       
       <div className="grid lg:grid-cols-3 gap-8">
-        {/* Main Form */}
+        {/* Enhanced App Creation Wizard */}
         <div className="lg:col-span-2">
           <Card>
             <CardContent className="p-8">
-              <form onSubmit={handleSubmit} className="space-y-8">
-                <div>
-                  <Label htmlFor="appName">App Name</Label>
-                  <Input
-                    id="appName"
-                    value={appName}
-                    onChange={(e) => setAppName(e.target.value)}
-                    placeholder="My Amazing App"
-                    required
-                    data-testid="input-app-name"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="icon">App Icon</Label>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-1">
-                      <Input
-                        id="icon"
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setIconFile(e.target.files?.[0] || null)}
-                        data-testid="input-icon"
-                      />
-                    </div>
-                    <span className="text-muted-foreground">or</span>
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={handleGenerateIcon}
-                      disabled={!appName.trim()}
-                      data-testid="button-generate-icon"
-                    >
-                      <Wand2 className="mr-2 h-4 w-4" />
-                      Generate with AI
-                    </Button>
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="prompt">App Description & Requirements</Label>
-                  <Textarea
-                    id="prompt"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    rows={8}
-                    placeholder="Describe your app in detail:
-
-• What pages should it have?
-• What features do you need?
-• What colors and design style?
-• Any specific functionality?
-• What images or content should be included?
-
-Example: Create a fitness tracking app with a dark theme and blue accents. Include pages for workout logging, progress charts, user profile, and settings. Add features for tracking exercises, setting goals, and viewing statistics. Use modern, clean design with card layouts."
-                    required
-                    data-testid="textarea-prompt"
-                  />
-                </div>
-                
-                <div>
-                  <Label>Backend Choice</Label>
-                  <RadioGroup value={backend} onValueChange={setBackend} className="grid md:grid-cols-3 gap-4 mt-2">
-                    <div className="flex items-center space-x-2 p-4 border border-border rounded-lg">
-                      <RadioGroupItem value="firebase" id="firebase" data-testid="radio-firebase" />
-                      <Label htmlFor="firebase" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Firebase</div>
-                        <div className="text-sm text-muted-foreground">Google's BaaS</div>
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 p-4 border border-border rounded-lg">
-                      <RadioGroupItem value="supabase" id="supabase" data-testid="radio-supabase" />
-                      <Label htmlFor="supabase" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Supabase</div>
-                        <div className="text-sm text-muted-foreground">Open source alternative</div>
-                      </Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 p-4 border border-border rounded-lg">
-                      <RadioGroupItem value="nodejs" id="nodejs" data-testid="radio-nodejs" />
-                      <Label htmlFor="nodejs" className="flex-1 cursor-pointer">
-                        <div className="font-medium">Node.js Custom</div>
-                        <div className="text-sm text-muted-foreground">Express.js API</div>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  size="lg"
-                  className="w-full btn-primary text-lg"
-                  disabled={createGenerationMutation.isPending || currentGeneration?.status === "generating"}
-                  data-testid="button-generate-app"
-                >
-                  {createGenerationMutation.isPending ? "Starting Generation..." : "Generate My App"}
-                  <Wand2 className="ml-2 h-5 w-5" />
-                </Button>
-              </form>
+              <AppWizard
+                onGenerate={handleGenerate}
+                isGenerating={createGenerationMutation.isPending || currentGeneration?.status === "generating"}
+              />
             </CardContent>
           </Card>
         </div>

@@ -93,7 +93,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/generations", authenticateUser, upload.single('icon'), async (req: AuthenticatedRequest, res) => {
     try {
-      const { appName, prompt, backend } = req.body;
+      // Import and validate request body with Zod
+      const { insertAppGenerationSchema } = await import("@shared/schema");
+      
+      const { appName, prompt, backend, iconUrl: bodyIconUrl } = req.body;
+      
+      // Validate the required fields
+      const validationData = {
+        userId: req.user!.id,
+        appName,
+        prompt, 
+        backend,
+        iconUrl: bodyIconUrl || null
+      };
+      
+      // Validate with schema (omit auto-generated fields)
+      const validatedData = insertAppGenerationSchema.omit({ id: true, status: true, progress: true, resultUrl: true, apkUrl: true, createdAt: true }).parse(validationData);
       
       // Check subscription limits
       const subscription = await storage.getUserSubscription(req.user!.id);
@@ -106,17 +121,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      let iconUrl = null;
+      let iconUrl = validatedData.iconUrl; // Use AI-generated icon URL if provided
       if (req.file) {
-        // In production, upload to cloud storage
+        // File upload takes priority over AI-generated icon
         iconUrl = `/uploads/${req.file.filename}`;
       }
 
       const generationData = {
-        userId: req.user!.id,
-        appName,
-        prompt,
-        backend,
+        userId: validatedData.userId,
+        appName: validatedData.appName,
+        prompt: validatedData.prompt,
+        backend: validatedData.backend,
         iconUrl
       };
 

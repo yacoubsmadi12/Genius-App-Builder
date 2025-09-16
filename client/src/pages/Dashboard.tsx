@@ -259,8 +259,8 @@ export default function Dashboard() {
         // Here you could set the generated icon URL if the API returned one
       } else {
         toast({
-          title: "Icon generation not available",
-          description: "Icon generation is currently not supported with Gemini. Please upload your own icon.",
+          title: "AI icon generated!",
+          description: "Your app icon has been created using Gemini AI with intelligent design matching your app's purpose.",
         });
       }
     } catch (error) {

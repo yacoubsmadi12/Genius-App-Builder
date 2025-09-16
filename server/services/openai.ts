@@ -126,13 +126,30 @@ Generate a comprehensive, production-ready Flutter app that fully implements the
       const response = await result.response;
       const text = response.text();
       
-      // Extract JSON from the response
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      // Extract JSON from the response - handle code fences and extra text
+      let jsonText = text.trim();
+      
+      // Remove markdown code fences if present
+      jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      
+      // Extract JSON object - look for the first complete JSON object
+      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error("No valid JSON found in response");
       }
       
-      const parsedResult = JSON.parse(jsonMatch[0]);
+      let parsedResult;
+      try {
+        parsedResult = JSON.parse(jsonMatch[0]);
+        
+        // Validate that we have the expected structure
+        if (!parsedResult.files || !parsedResult.structure) {
+          throw new Error("Invalid JSON structure: missing files or structure");
+        }
+      } catch (parseError) {
+        console.error("JSON parsing failed:", parseError);
+        throw new Error(`Invalid JSON in response: ${parseError.message}`);
+      }
       console.log(`AI generation successful on attempt ${attempt}`);
       return parsedResult as GeneratedApp;
       

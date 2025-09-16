@@ -132,15 +132,101 @@ export default function Dashboard() {
     createGenerationMutation.mutate(formData);
   };
 
-  const handleDownloadZip = () => {
-    if (currentGeneration?.resultUrl) {
-      window.open(currentGeneration.resultUrl, '_blank');
+  const handleDownloadZip = async () => {
+    if (!currentGeneration?.resultUrl) return;
+
+    try {
+      toast({
+        title: "Starting download",
+        description: "Preparing your Flutter app ZIP file...",
+      });
+
+      const { getAuthToken } = await import("@/lib/auth");
+      const token = getAuthToken();
+      
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(currentGeneration.resultUrl, {
+        headers,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentGeneration.appName || 'flutter-app'}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download complete!",
+        description: "Your Flutter app has been downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Failed to download ZIP file",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleDownloadApk = () => {
-    if (currentGeneration?.apkUrl) {
-      window.open(currentGeneration.apkUrl, '_blank');
+  const handleDownloadApk = async () => {
+    if (!currentGeneration?.apkUrl) return;
+
+    try {
+      toast({
+        title: "Starting download",
+        description: "Preparing your Flutter APK file...",
+      });
+
+      const { getAuthToken } = await import("@/lib/auth");
+      const token = getAuthToken();
+      
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(currentGeneration.apkUrl, {
+        headers,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${currentGeneration.appName || 'flutter-app'}.apk`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download complete!",
+        description: "Your Flutter APK has been downloaded successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Failed to download APK file",
+        variant: "destructive",
+      });
     }
   };
 

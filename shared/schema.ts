@@ -62,3 +62,24 @@ export type InsertAppGeneration = z.infer<typeof insertAppGenerationSchema>;
 export type AppGeneration = typeof appGenerations.$inferSelect;
 export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
 export type Subscription = typeof subscriptions.$inferSelect;
+
+// Schema for parsed app description
+export const parsedAppStructureSchema = z.object({
+  appName: z.string().min(1, "App name is required"),
+  description: z.string().min(1, "Description is required"),
+  language: z.enum(["en", "ar", "mixed"]).default("en"),
+  originalText: z.string(),
+  screens: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional()
+  })).min(1, "At least one screen is required"),
+  features: z.array(z.string()).default([])
+});
+
+export type ParsedAppStructure = z.infer<typeof parsedAppStructureSchema>;
+
+// Schema for description parsing request
+export const parseDescriptionRequestSchema = z.object({
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  appName: z.string().optional()
+});

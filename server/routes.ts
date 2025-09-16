@@ -148,18 +148,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Parse app description route
   app.post("/api/parse-description", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {
-      const { description } = req.body;
+      const { parseDescriptionRequestSchema } = await import("@shared/schema");
       
-      if (!description) {
-        return res.status(400).json({ error: "Description is required" });
-      }
-
+      // Validate request body using Zod schema
+      const validatedData = parseDescriptionRequestSchema.parse(req.body);
+      
       const { parseAppDescription } = await import("./services/openai");
       
-      const parsedApp = await parseAppDescription(description);
+      const parsedApp = await parseAppDescription(validatedData.description, validatedData.appName);
       
       res.json(parsedApp);
     } catch (error) {
+      const { ZodError } = await import("zod");
+      if (error instanceof ZodError) {
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          details: error.issues 
+        });
+      }
+      console.error('Parse description error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });

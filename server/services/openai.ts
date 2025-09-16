@@ -850,104 +850,248 @@ function createEnhancedSVGIcon(appName: string, designSpec: any) {
   return svgIcon;
 }
 
-export interface ParsedAppStructure {
-  appName: string;
-  screens: string[];
-  features: string[];
-  description: string;
-}
+// Import the proper schema
+import { parsedAppStructureSchema, type ParsedAppStructure } from "@shared/schema";
 
-export async function parseAppDescription(description: string): Promise<ParsedAppStructure> {
-  console.log('Parsing app description using Gemini AI...');
+export async function parseAppDescription(description: string, appName?: string): Promise<ParsedAppStructure> {
+  console.log('Parsing app description using Gemini AI with schema validation...');
   
-  try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    
-    const parsePrompt = `You are an expert app analyst. Parse this app description and extract structured information.
+  // Detect language
+  const hasArabic = /[\u0600-\u06FF]/.test(description);
+  const language = hasArabic ? 'ar' : 'en';
+  
+  // Retry mechanism with exponential backoff
+  let lastError: any;
+  const maxRetries = 3;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Parsing attempt ${attempt}/${maxRetries}...`);
+      
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      
+      const parsePrompt = `You are an expert app analyst. Parse this app description and extract structured information.
 
 Description: ${description}
+${appName ? `Suggested App Name: ${appName}` : ''}
 
-Extract and return a JSON object with this exact structure:
+Extract and return a JSON object with this EXACT structure:
 
 {
-  "appName": "extracted or inferred app name",
-  "screens": ["list", "of", "screen", "names"],
-  "features": ["list", "of", "key", "features"],
-  "description": "cleaned up description"
+  "appName": "extracted or provided app name",
+  "description": "cleaned up description in English",
+  "language": "${language}",
+  "originalText": "${description.replace(/"/g, '\\"')}",
+  "screens": [
+    {"name": "Login", "description": "User authentication screen"},
+    {"name": "Home", "description": "Main app screen"}
+  ],
+  "features": ["Authentication", "Feature Name"]
 }
 
 Rules:
-- If no app name is mentioned, create a suitable one based on the description
-- Extract all mentioned screens (Login, Home, Profile, Settings, etc.)
-- Identify key features (Authentication, Dark Mode, Notifications, etc.)
-- Support Arabic input and output in English
-- Return only valid JSON without markdown
+- Use provided appName if available, otherwise extract or infer from description
+- For Arabic input: preserve originalText in Arabic, but provide English names for screens/features
+- Extract ALL mentioned screens with descriptions
+- Identify key features from the description
+- Convert screen names to PascalCase (Login, Home, Settings, etc.)
+- Return ONLY valid JSON without markdown formatting
 
-Examples:
-Input: "Make me a story app called Ai Story Gen with login screen and home screen"
-Output: {"appName": "Ai Story Gen", "screens": ["Login", "Home"], "features": ["Authentication", "Story Generation"], "description": "AI-powered story generation app"}`;
+Screen Examples: Login, Home, Profile, Settings, Dashboard, Details, Search, Cart, Checkout
+Feature Examples: Authentication, Push Notifications, Dark Mode, Offline Mode, Social Sharing`;
 
-    const result = await model.generateContent(parsePrompt);
-    const response = await result.response;
-    const text = response.text().trim();
-    
-    try {
-      const cleanText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
-      const parsed = JSON.parse(cleanText);
+      const result = await model.generateContent(parsePrompt);
+      const response = await result.response;
+      const text = response.text().trim();
       
-      console.log('Successfully parsed app structure:', parsed);
-      return parsed;
-    } catch (parseError) {
-      console.log('Failed to parse AI response, using fallback parsing');
-      return fallbackParseDescription(description);
+      try {
+        // Clean and extract JSON
+        const cleanText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+        const jsonMatch = cleanText.match(/\{[\s\S]*\}/);
+        
+        if (!jsonMatch) {
+          throw new Error('No valid JSON found in response');
+        }
+        
+        const parsed = JSON.parse(jsonMatch[0]);
+        
+        // Validate against schema using safeParse
+        const schemaResult = parsedAppStructureSchema.safeParse({
+          appName: parsed.appName || appName || 'My App',
+          description: parsed.description || description,
+          language: language,
+          originalText: description.length > 4000 ? description.substring(0, 4000) + '...' : description,
+          screens: Array.isArray(parsed.screens) ? parsed.screens.map((s: any) => 
+            typeof s === 'string' ? { name: s, description: '' } : s
+          ) : [{ name: 'Home', description: 'Main screen' }],
+          features: Array.isArray(parsed.features) ? parsed.features : []
+        });
+        
+        if (!schemaResult.success) {
+          throw new Error(`Schema validation failed: ${JSON.stringify(schemaResult.error.issues)}`);
+        }
+        
+        const validated = schemaResult.data;
+        
+        console.log(`Successfully parsed app structure on attempt ${attempt}:`, validated);
+        return validated;
+        
+      } catch (parseError: any) {
+        console.error(`JSON parsing failed on attempt ${attempt}:`, parseError);
+        lastError = parseError;
+        
+        if (attempt === maxRetries) {
+          console.log('All parsing attempts failed, using intelligent fallback');
+          return fallbackParseDescription(description, appName, language);
+        }
+        
+        // Wait before retry (exponential backoff)
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Waiting ${waitTime}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Gemini parsing attempt ${attempt} failed:`, error.message);
+      
+      // Don't retry on certain errors
+      if (error.status === 400 || error.status === 401 || error.status === 403) {
+        break;
+      }
+      
+      if (attempt === maxRetries) {
+        console.log('All Gemini attempts failed, using intelligent fallback');
+        return fallbackParseDescription(description, appName, language);
+      }
+      
+      // Wait before retry
+      const waitTime = Math.pow(2, attempt) * 1000;
+      console.log(`Waiting ${waitTime}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
-  } catch (error) {
-    console.error('Gemini parsing error:', error);
-    return fallbackParseDescription(description);
   }
+  
+  // Should never reach here, but just in case
+  return fallbackParseDescription(description, appName, language);
 }
 
-function fallbackParseDescription(description: string): ParsedAppStructure {
-  // Simple fallback parsing using keyword detection
+function fallbackParseDescription(description: string, providedAppName?: string, detectedLanguage = 'en'): ParsedAppStructure {
+  console.log('Using intelligent fallback parsing...');
+  
   const lowerDesc = description.toLowerCase();
   
-  // Extract app name
-  let appName = 'My App';
-  const nameMatch = description.match(/(?:called|named)\s+([A-Za-z\s]+)/i);
-  if (nameMatch) {
-    appName = nameMatch[1].trim();
-  } else if (lowerDesc.includes('story')) {
-    appName = 'Story App';
-  } else if (lowerDesc.includes('shop')) {
-    appName = 'Shopping App';
+  // Extract app name with better logic
+  let appName = providedAppName || 'My App';
+  if (!providedAppName) {
+    const namePatterns = [
+      /(?:called|named|titled)\s+["']?([^"'\n]+)["']?/i,
+      /(?:app|application)\s+["']?([^"'\n]+)["']?/i,
+      /^([A-Za-z\s]+?)\s+(?:app|application)/i
+    ];
+    
+    for (const pattern of namePatterns) {
+      const match = description.match(pattern);
+      if (match && match[1].trim().length > 0 && match[1].trim().length < 50) {
+        appName = match[1].trim();
+        break;
+      }
+    }
+    
+    // Theme-based naming
+    if (appName === 'My App') {
+      if (lowerDesc.includes('story') || lowerDesc.includes('قصة')) appName = 'Story App';
+      else if (lowerDesc.includes('shop') || lowerDesc.includes('متجر')) appName = 'Shopping App';
+      else if (lowerDesc.includes('fitness') || lowerDesc.includes('رياضة')) appName = 'Fitness App';
+      else if (lowerDesc.includes('chat') || lowerDesc.includes('محادثة')) appName = 'Chat App';
+    }
   }
   
-  // Extract screens
-  const screens = [];
-  if (lowerDesc.includes('login')) screens.push('Login');
-  if (lowerDesc.includes('home')) screens.push('Home');
-  if (lowerDesc.includes('profile')) screens.push('Profile');
-  if (lowerDesc.includes('settings')) screens.push('Settings');
-  if (lowerDesc.includes('details')) screens.push('Details');
+  // Extract screens with better detection
+  const screenMap = {
+    'login': ['login', 'signin', 'sign in', 'دخول', 'تسجيل الدخول'],
+    'signup': ['signup', 'register', 'sign up', 'تسجيل', 'إنشاء حساب'],
+    'home': ['home', 'main', 'dashboard', 'الرئيسية', 'الصفحة الرئيسية'],
+    'profile': ['profile', 'account', 'user', 'الملف الشخصي', 'الحساب'],
+    'settings': ['settings', 'preferences', 'config', 'الإعدادات', 'التفضيلات'],
+    'details': ['details', 'info', 'view', 'التفاصيل', 'معلومات'],
+    'search': ['search', 'find', 'البحث'],
+    'cart': ['cart', 'basket', 'السلة'],
+    'checkout': ['checkout', 'payment', 'الدفع'],
+    'notifications': ['notifications', 'alerts', 'الإشعارات']
+  };
+  
+  const detectedScreens = [];
+  for (const [screenName, keywords] of Object.entries(screenMap)) {
+    if (keywords.some(keyword => lowerDesc.includes(keyword.toLowerCase()))) {
+      detectedScreens.push({
+        name: screenName.charAt(0).toUpperCase() + screenName.slice(1),
+        description: `${screenName.charAt(0).toUpperCase() + screenName.slice(1)} screen`
+      });
+    }
+  }
   
   // Ensure at least basic screens
-  if (screens.length === 0) {
-    screens.push('Home', 'Settings');
+  if (detectedScreens.length === 0) {
+    detectedScreens.push(
+      { name: 'Home', description: 'Main application screen' },
+      { name: 'Settings', description: 'App settings and preferences' }
+    );
   }
   
-  // Extract features
-  const features = [];
-  if (lowerDesc.includes('login') || lowerDesc.includes('auth')) features.push('Authentication');
-  if (lowerDesc.includes('dark') || lowerDesc.includes('theme')) features.push('Theme Switching');
-  if (lowerDesc.includes('notification')) features.push('Notifications');
-  if (lowerDesc.includes('story') || lowerDesc.includes('generate')) features.push('Content Generation');
+  // Extract features with better detection
+  const featureMap = {
+    'Authentication': ['login', 'signin', 'auth', 'دخول', 'مصادقة'],
+    'Theme Switching': ['dark', 'theme', 'mode', 'المظهر', 'الوضع'],
+    'Push Notifications': ['notification', 'alert', 'push', 'إشعارات'],
+    'Content Generation': ['generate', 'create', 'ai', 'توليد', 'إنشاء'],
+    'Social Sharing': ['share', 'social', 'مشاركة'],
+    'Offline Mode': ['offline', 'cache', 'غير متصل'],
+    'Search': ['search', 'find', 'البحث'],
+    'Favorites': ['favorite', 'bookmark', 'save', 'المفضلة']
+  };
   
-  return {
+  const detectedFeatures = [];
+  for (const [featureName, keywords] of Object.entries(featureMap)) {
+    if (keywords.some(keyword => lowerDesc.includes(keyword.toLowerCase()))) {
+      detectedFeatures.push(featureName);
+    }
+  }
+  
+  // Validate and return structured result
+  const result = {
     appName,
-    screens,
-    features,
-    description: description.trim()
+    description: description.trim(),
+    language: detectedLanguage as 'en' | 'ar' | 'mixed',
+    originalText: description.length > 4000 ? description.substring(0, 4000) + '...' : description,
+    screens: detectedScreens,
+    features: detectedFeatures
+  };
+  
+  // Validate against schema to ensure consistency
+  const schemaResult = parsedAppStructureSchema.safeParse(result);
+  if (schemaResult.success) {
+    return schemaResult.data;
+  }
+  
+  console.error('Fallback parsing failed schema validation:', schemaResult.error);
+  // Return minimum valid structure
+  const fallbackResult = parsedAppStructureSchema.safeParse({
+    appName: 'My App',
+    description: description.trim().substring(0, 500),
+    language: detectedLanguage as 'en' | 'ar' | 'mixed',
+    originalText: description.length > 4000 ? description.substring(0, 4000) + '...' : description,
+    screens: [{ name: 'Home', description: 'Main screen' }],
+    features: []
+  });
+  
+  return fallbackResult.success ? fallbackResult.data : {
+    appName: 'My App',
+    description: 'Generated app',
+    language: 'en' as const,
+    originalText: description.substring(0, 1000),
+    screens: [{ name: 'Home', description: 'Main screen' }],
+    features: []
   };
 }
 

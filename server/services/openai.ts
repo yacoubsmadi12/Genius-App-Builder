@@ -264,7 +264,29 @@ export async function generateAppIcon(appName: string, description: string): Pro
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {
-  // Skip AI enhancement to avoid quota issues, return original prompt
-  console.log("Skipping prompt enhancement to conserve API quota");
-  return prompt;
+  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+  const enhancePrompt = `You are an expert app designer. Enhance the user's app description to include specific technical details, UI/UX requirements, and feature specifications that will help generate a better Flutter app.
+
+Add details about:
+- Specific screens and navigation flow
+- UI components and layouts
+- Color schemes and design style
+- Data models and functionality
+- User interactions and workflows
+
+Original prompt: ${prompt}
+
+Return only the enhanced description without any additional text or explanations.`;
+
+  try {
+    const result = await model.generateContent(enhancePrompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return text.trim() || prompt;
+  } catch (error) {
+    console.error("Failed to enhance prompt:", error);
+    return prompt;
+  }
 }

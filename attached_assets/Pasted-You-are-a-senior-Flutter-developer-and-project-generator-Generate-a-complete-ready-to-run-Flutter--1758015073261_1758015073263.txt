@@ -1,0 +1,111 @@
+You are a senior Flutter developer and project generator. Generate a complete, ready-to-run Flutter project (Android) named "Ai Story Gen". Produce production-quality, well-structured code with comments, following modern Flutter best practices and null-safety.
+
+--- Project details ---
+App name: Ai Story Gen
+Platform: Android (Flutter)
+Flutter version: latest stable (null-safety)
+State management: Riverpod (use flutter_riverpod)
+Architecture: feature folders with clear separation: lib/main.dart, lib/models, lib/screens, lib/widgets, lib/services, lib/providers, lib/utils, assets/, i18n/
+
+--- Functional requirements ---
+1. Splash screen: animated logo, auto-navigate to onboarding or home after 2s.
+2. Onboarding: 2-3 slides, Skip button, "Get Started" route to Auth or Home.
+3. Authentication: Email/password + Google Sign-In (use firebase_auth + google_sign_in). Include password reset flow (UI + Firebase stub).
+4. Home screen:
+   - Welcome message with user name if logged in.
+   - Big "Generate Story" CTA.
+   - Horizontal list: Recommended (AI) stories.
+   - Vertical list: Saved stories (favorites).
+5. Story generation screen:
+   - Prompt text input (single-line title + multi-line prompt).
+   - Genre dropdown: Fantasy, Sci-Fi, Romance, Horror, Comedy, Adventure.
+   - Length selector (Short/Medium/Long).
+   - "Generate Story" button.
+   - Show loading indicator while generating.
+   - Show generated story: title, subtitle (genre/length), body (scrollable).
+   - Buttons: Save, Share (text/image), Copy, Export PDF.
+6. Story details / reader:
+   - Full story view with adjustable font size and line height.
+   - Toggle theme (persisted).
+   - Bookmark / delete / share.
+7. Saved stories:
+   - List with search and genre filter, swipe-to-delete with undo.
+   - Offline reading (local cache).
+8. Settings:
+   - Theme: system / light / dark (persist preference).
+   - Font size slider.
+   - Language selection: English / Arabic (RTL support).
+   - About, contact email link, app version.
+9. Notifications:
+   - Daily scheduled "Story of the day" local notification (flutter_local_notifications).
+10. Backend & storage:
+    - Firebase for Auth and Firestore (saved stories) + Storage for images.
+    - Provide placeholder config instructions and example firebase_options.dart (do not include real credentials).
+    - Local cache via shared_preferences or hive for quick offline read.
+11. Extra features:
+    - Export story to PDF (pdf + printing).
+    - Share story as text and as an image snapshot (screenshot).
+    - Mock AI history log stored in Firestore (or local fallback).
+12. Accessibility & responsiveness:
+    - Responsive layout for different Android sizes.
+    - Use readable fonts and accessible contrast.
+13. Tests:
+    - Include at least one widget test for StoryGenerationScreen and one unit test for mock AI service.
+
+--- Implementation requirements / packages to include ---
+Please scaffold pubspec with these packages (or latest equivalents):
+- flutter_riverpod
+- firebase_core, firebase_auth, cloud_firestore, firebase_storage
+- google_sign_in
+- shared_preferences (or hive)
+- flutter_local_notifications
+- intl, flutter_localizations
+- path_provider
+- pdf
+- share_plus
+- screenshot (for share as image)
+- flutter_svg (for vector assets)
+
+--- AI integration (mock) ---
+Create a service `lib/services/ai_service.dart` with:
+- Function `Future<GeneratedStory> generateStory({String prompt, String genre, String length})`
+- Implementation: simulate network delay (1.5–3s), then return a `GeneratedStory` model:
+  {
+    id: uuid,
+    title: generated title (based on prompt),
+    genre: genre,
+    length: length,
+    content: long generated text (300–1200 words depending on length),
+    createdAt: timestamp,
+    summary: 2-3 sentence summary
+  }
+- Make the mock deterministic for testing (seeded) and easy to swap for real API calls later.
+
+--- Code quality & documentation ---
+- Provide clear inline comments for each major file/function.
+- README.md with:
+  - Project overview.
+  - How to run (flutter pub get, firebase setup placeholders, android build).
+  - Where to add google-services.json and firebase options.
+  - How to swap mock AI with a real API.
+- Lint rules: basic analysis_options.yaml enabling recommended lints.
+
+--- Assets & icons ---
+- Generate app icons (adaptive) and place in android/app/src/main/res (request generator to create icons/png sizes).
+- Include placeholder logo SVG/PNG in assets/images.
+- Ensure app will not crash if firebase config is not present — show fallback local-only mode message.
+
+--- Localization ---
+- Provide i18n for English and Arabic using arb/json files and wiring (en, ar). Ensure RTL layout for Arabic pages and correct text direction.
+
+--- Output expected from generator ---
+1. Full project tree (zipped) or individual files with code content.
+2. main.dart that wires Riverpod, Firebase initialization (with comment placeholders), routing, theme provider.
+3. All screen files: Splash, Onboarding, Auth (login/signup), Home, GenerateStory, StoryDetails, SavedStories, Settings.
+4. Services: ai_service.dart, auth_service.dart, storage_service.dart, notification_service.dart.
+5. Provider files for state management.
+6. README with setup steps.
+
+--- Final note to the generator ---
+Generate code that is compile-ready (aside from inserting actual Firebase credentials). Keep everything modular and comment where the developer must add real API keys or files. Use modern UI patterns and smooth animations. Ensure navigation and basic flows are fully functional with the mock AI.
+

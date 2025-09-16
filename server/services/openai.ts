@@ -690,7 +690,7 @@ export async function generateAppIcon(appName: string, description: string): Pro
 App Name: ${appName}
 App Description: ${description}
 
-Generate a JSON response with detailed design specifications:
+If the input is in Arabic, understand the app concept and create design specifications in English. Generate a JSON response with detailed design specifications:
 
 {
   "primaryColor": "hex color that matches the app's purpose",

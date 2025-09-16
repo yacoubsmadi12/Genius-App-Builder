@@ -678,7 +678,13 @@ class DefaultFirebaseOptions {
   return { files, structure, readme: files["README.md"] };
 }
 
-export async function generateAppIcon(appName: string, description: string): Promise<string> {
+export interface IconGenerationResult {
+  iconUrl: string;
+  designSpec: any;
+  source: 'gemini' | 'fallback';
+}
+
+export async function generateAppIcon(appName: string, description: string): Promise<IconGenerationResult> {
   console.log(`Generating AI-powered icon design for ${appName} using Gemini AI`);
   
   try {
@@ -723,20 +729,33 @@ Return only valid JSON without any markdown formatting.`;
       console.log("Failed to parse AI response, using intelligent fallback");
       // Intelligent fallback based on app name/description analysis
       designSpec = generateIntelligentFallback(appName, description);
+      return {
+        iconUrl: `data:image/svg+xml;base64,${Buffer.from(createEnhancedSVGIcon(appName, designSpec)).toString('base64')}`,
+        designSpec,
+        source: 'fallback'
+      };
     }
     
     // Generate enhanced SVG icon based on AI specifications
     const svgIcon = createEnhancedSVGIcon(appName, designSpec);
     
     console.log(`Successfully generated AI-powered icon for ${appName}`);
-    return `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`;
+    return {
+      iconUrl: `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`,
+      designSpec,
+      source: 'gemini'
+    };
     
   } catch (error) {
     console.error("Gemini AI icon generation error:", error);
     // Fallback to intelligent design
     const designSpec = generateIntelligentFallback(appName, description);
     const svgIcon = createEnhancedSVGIcon(appName, designSpec);
-    return `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`;
+    return {
+      iconUrl: `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`,
+      designSpec,
+      source: 'fallback'
+    };
   }
 }
 
@@ -829,6 +848,107 @@ function createEnhancedSVGIcon(appName: string, designSpec: any) {
   </svg>`;
   
   return svgIcon;
+}
+
+export interface ParsedAppStructure {
+  appName: string;
+  screens: string[];
+  features: string[];
+  description: string;
+}
+
+export async function parseAppDescription(description: string): Promise<ParsedAppStructure> {
+  console.log('Parsing app description using Gemini AI...');
+  
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    
+    const parsePrompt = `You are an expert app analyst. Parse this app description and extract structured information.
+
+Description: ${description}
+
+Extract and return a JSON object with this exact structure:
+
+{
+  "appName": "extracted or inferred app name",
+  "screens": ["list", "of", "screen", "names"],
+  "features": ["list", "of", "key", "features"],
+  "description": "cleaned up description"
+}
+
+Rules:
+- If no app name is mentioned, create a suitable one based on the description
+- Extract all mentioned screens (Login, Home, Profile, Settings, etc.)
+- Identify key features (Authentication, Dark Mode, Notifications, etc.)
+- Support Arabic input and output in English
+- Return only valid JSON without markdown
+
+Examples:
+Input: "Make me a story app called Ai Story Gen with login screen and home screen"
+Output: {"appName": "Ai Story Gen", "screens": ["Login", "Home"], "features": ["Authentication", "Story Generation"], "description": "AI-powered story generation app"}`;
+
+    const result = await model.generateContent(parsePrompt);
+    const response = await result.response;
+    const text = response.text().trim();
+    
+    try {
+      const cleanText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+      const parsed = JSON.parse(cleanText);
+      
+      console.log('Successfully parsed app structure:', parsed);
+      return parsed;
+    } catch (parseError) {
+      console.log('Failed to parse AI response, using fallback parsing');
+      return fallbackParseDescription(description);
+    }
+    
+  } catch (error) {
+    console.error('Gemini parsing error:', error);
+    return fallbackParseDescription(description);
+  }
+}
+
+function fallbackParseDescription(description: string): ParsedAppStructure {
+  // Simple fallback parsing using keyword detection
+  const lowerDesc = description.toLowerCase();
+  
+  // Extract app name
+  let appName = 'My App';
+  const nameMatch = description.match(/(?:called|named)\s+([A-Za-z\s]+)/i);
+  if (nameMatch) {
+    appName = nameMatch[1].trim();
+  } else if (lowerDesc.includes('story')) {
+    appName = 'Story App';
+  } else if (lowerDesc.includes('shop')) {
+    appName = 'Shopping App';
+  }
+  
+  // Extract screens
+  const screens = [];
+  if (lowerDesc.includes('login')) screens.push('Login');
+  if (lowerDesc.includes('home')) screens.push('Home');
+  if (lowerDesc.includes('profile')) screens.push('Profile');
+  if (lowerDesc.includes('settings')) screens.push('Settings');
+  if (lowerDesc.includes('details')) screens.push('Details');
+  
+  // Ensure at least basic screens
+  if (screens.length === 0) {
+    screens.push('Home', 'Settings');
+  }
+  
+  // Extract features
+  const features = [];
+  if (lowerDesc.includes('login') || lowerDesc.includes('auth')) features.push('Authentication');
+  if (lowerDesc.includes('dark') || lowerDesc.includes('theme')) features.push('Theme Switching');
+  if (lowerDesc.includes('notification')) features.push('Notifications');
+  if (lowerDesc.includes('story') || lowerDesc.includes('generate')) features.push('Content Generation');
+  
+  return {
+    appName,
+    screens,
+    features,
+    description: description.trim()
+  };
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {

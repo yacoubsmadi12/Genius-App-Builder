@@ -145,6 +145,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Parse app description route
+  app.post("/api/parse-description", authenticateUser, async (req: AuthenticatedRequest, res) => {
+    try {
+      const { description } = req.body;
+      
+      if (!description) {
+        return res.status(400).json({ error: "Description is required" });
+      }
+
+      const { parseAppDescription } = await import("./services/openai");
+      
+      const parsedApp = await parseAppDescription(description);
+      
+      res.json(parsedApp);
+    } catch (error) {
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Icon generation route
   app.post("/api/generate-icon", authenticateUser, async (req: AuthenticatedRequest, res) => {
     try {
@@ -157,12 +176,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import the icon generation function
       const { generateAppIcon } = await import("./services/openai");
       
-      const iconUrl = await generateAppIcon(appName, description || "Modern mobile application icon");
+      const result = await generateAppIcon(appName, description || "Modern mobile application icon");
       
-      // Since Gemini doesn't support image generation yet, we'll return a placeholder response
       res.json({ 
-        iconUrl: iconUrl || null,
-        message: iconUrl ? "Icon generated successfully" : "Icon generation is not available with current AI model"
+        iconUrl: result.iconUrl,
+        designSpec: result.designSpec,
+        source: result.source,
+        message: result.source === 'gemini' ? "Icon generated with AI" : "Icon generated with smart fallback"
       });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });

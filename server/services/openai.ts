@@ -64,89 +64,29 @@ Focus on creating a realistic, functional app that matches the description exact
 }
 
 export async function generateAppIcon(appName: string, description: string): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-
-  try {
-    // Generate detailed icon description using Gemini
-    const iconPrompt = `Create a detailed description for a modern mobile app icon for "${appName}".
-
-App Description: ${description}
-
-Generate a detailed visual description that includes:
-- Color scheme (2-3 main colors)
-- Main visual elements/symbols
-- Shape and style (modern, flat design, etc.)
-- Typography style for any text elements
-- Overall aesthetic (professional, playful, minimalist, etc.)
-
-Format the response as a JSON with the following structure:
-{
-  "description": "Complete visual description",
-  "colors": ["primary color", "secondary color"],
-  "elements": ["main element", "secondary element"],
-  "style": "design style",
-  "iconUrl": "data:image/svg+xml;base64,${btoa('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#4F46E5" rx="12"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="white">${appName.charAt(0).toUpperCase()}</text></svg>')}"
-}
-
-Return only the JSON response.`;
-
-    const result = await model.generateContent(iconPrompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    // Extract JSON from the response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      // Fallback: create a simple text-based icon
-      const firstLetter = appName.charAt(0).toUpperCase();
-      const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-        <rect width="64" height="64" fill="#4F46E5" rx="12"/>
-        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="white">${firstLetter}</text>
-      </svg>`;
-      return `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`;
-    }
-    
-    const iconData = JSON.parse(jsonMatch[0]);
-    console.log(`Icon generated for ${appName}:`, iconData.description);
-    
-    return iconData.iconUrl || `data:image/svg+xml;base64,${Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#4F46E5" rx="12"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="white">${appName.charAt(0).toUpperCase()}</text></svg>`).toString('base64')}`;
-    
-  } catch (error) {
-    console.error("Icon generation failed:", error);
-    // Create a fallback icon with the first letter of the app name
-    const firstLetter = appName.charAt(0).toUpperCase();
-    const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-      <rect width="64" height="64" fill="#6366F1" rx="12"/>
-      <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="24" font-weight="bold" fill="white">${firstLetter}</text>
-    </svg>`;
-    return `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`;
-  }
+  console.log(`Creating fallback icon for ${appName}`);
+  
+  // Create a fallback icon immediately without using AI to avoid quota issues
+  const firstLetter = appName.charAt(0).toUpperCase();
+  const colors = ['#6366F1', '#8B5CF6', '#EC4899', '#EF4444', '#F59E0B', '#10B981', '#06B6D4'];
+  const randomColor = colors[Math.floor(Math.random() * colors.length)];
+  
+  const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+    <defs>
+      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:${randomColor};stop-opacity:1" />
+        <stop offset="100%" style="stop-color:${randomColor}AA;stop-opacity:1" />
+      </linearGradient>
+    </defs>
+    <rect width="64" height="64" fill="url(#grad)" rx="16"/>
+    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="white">${firstLetter}</text>
+  </svg>`;
+  
+  return `data:image/svg+xml;base64,${Buffer.from(svgIcon).toString('base64')}`;
 }
 
 export async function enhancePrompt(prompt: string): Promise<string> {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-
-  const enhancePrompt = `You are an expert app designer. Enhance the user's app description to include specific technical details, UI/UX requirements, and feature specifications that will help generate a better Flutter app.
-
-Add details about:
-- Specific screens and navigation flow
-- UI components and layouts
-- Color schemes and design style
-- Data models and functionality
-- User interactions and workflows
-
-Original prompt: ${prompt}
-
-Return only the enhanced description without any additional text or explanations.`;
-
-  try {
-    const result = await model.generateContent(enhancePrompt);
-    const response = await result.response;
-    const text = response.text();
-    
-    return text.trim() || prompt;
-  } catch (error) {
-    console.error("Failed to enhance prompt:", error);
-    return prompt;
-  }
+  // Skip AI enhancement to avoid quota issues, return original prompt
+  console.log("Skipping prompt enhancement to conserve API quota");
+  return prompt;
 }
